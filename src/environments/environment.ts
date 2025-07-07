@@ -15,7 +15,7 @@
 
 // src/environments/environment.ts
 export const environment = {
-  production: false,
+  production: true,
   apiUrl: 'https://teletransfer.onrender.com', 
   wsUrl: 'wss://teletransfer.onrender.com/ws_api/ws'
 };
