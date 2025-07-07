@@ -17,5 +17,5 @@
 export const environment = {
   production: false,
   apiUrl: 'https://teletransfer.onrender.com', 
-  wsUrl: 'ws://teletransfer.onrender.com/ws_api/ws'
+  wsUrl: 'wss://teletransfer.onrender.com/ws_api/ws'
 };
