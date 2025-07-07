@@ -5,9 +5,17 @@
 //   wsUrl: 'wss://mitali-backend-f8xd.onrender.com/ws_api/ws' 
 // };
 
+// // src/environments/environment.ts
+// export const environment = {
+//   production: false,
+//   apiUrl: 'http://localhost:5000', 
+//   wsUrl: 'ws://localhost:5000/ws_api/ws'
+// };
+
+
 // src/environments/environment.ts
 export const environment = {
   production: false,
-  apiUrl: 'http://localhost:5000', 
-  wsUrl: 'ws://localhost:5000/ws_api/ws'
+  apiUrl: 'https://teletransfer.onrender.com', 
+  wsUrl: 'ws://teletransfer.onrender.com/ws_api/ws'
 };
