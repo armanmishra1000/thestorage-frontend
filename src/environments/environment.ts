@@ -1,30 +1,11 @@
-// // export const environment = {
-// //   production: true,
-// //   // IMPORTANT: Use your actual Render backend URL
-// //   apiUrl: 'https://mitali-backend-f8xd.onrender.com/api/v1', 
-// //   wsUrl: 'wss://mitali-backend-f8xd.onrender.com/ws_api/ws' 
-// // };
-
-// // // src/environments/environment.ts
-// // export const environment = {
-// //   production: false,
-// //   apiUrl: 'http://localhost:5000', 
-// //   wsUrl: 'ws://localhost:5000/ws_api/ws'
-// // };
-
-
-// // src/environments/environment.ts
-// export const environment = {
-//   production: true,
-//   apiUrl: 'https://teletransfer.onrender.com', 
-//   wsUrl: 'wss://teletransfer.onrender.com/ws_api/ws'
-// };
-
-
-// File: src/environments/environment.ts
+// In file: Frontend/src/environments/environment.ts
 
 export const environment = {
   production: false,
-  apiUrl: 'http://localhost:5000',
-  wsUrl: 'ws://localhost:5000/ws_api/ws'
+  // --- THIS IS THE FIX ---
+  // When running locally, the backend Docker container exposes port 5000
+  // to your machine. We connect to it via http://127.0.0.1:5000, not localhost.
+  // Using 127.0.0.1 is often more reliable than 'localhost' in Docker-based setups.
+  apiUrl: 'http://127.0.0.1:5000',
+  wsUrl: 'ws://127.0.0.1:5000/ws_api'
 };

@@ -3,5 +3,5 @@
 export const environment = {
   production: true,
   apiUrl: 'https://teletransfer.onrender.com',
-  wsUrl: 'wss://teletransfer.onrender.com/ws_api/ws'
+  wsUrl: 'wss://teletransfer.onrender.com/ws_api'
 };
