@@ -28,6 +28,12 @@
       <div *ngIf="selectedFile">
         <p class="text-gray-700 font-semibold break-all">{{ selectedFile.name }}</p>
         <p class="text-sm text-gray-500">{{ selectedFile.size / 1024 / 1024 | number:'1.2-2' }} MB</p>
+        
+        <!-- Browser compatibility warning for large files -->
+        <div *ngIf="showBrowserWarning" class="mt-3 p-2 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 text-sm">
+          <p><strong>Warning:</strong> Your browser may have issues with files larger than 4GB.</p>
+          <p>For best results, please use Chrome or Firefox.</p>
+        </div>
       </div>
     </div>
     

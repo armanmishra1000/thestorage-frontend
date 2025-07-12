@@ -21,17 +21,55 @@ export class HomeComponent implements OnDestroy {
   public uploadProgress = 0;
   public finalDownloadLink: string | null = null;
   public errorMessage: string | null = null;
+  
+  // Browser compatibility warning for large files
+  public showBrowserWarning = false;
+  public isUnsupportedBrowser = false;
+  
+  // Size limit for browser warning (4GB in bytes)
+  private readonly LARGE_FILE_SIZE_LIMIT = 4 * 1024 * 1024 * 1024;
 
   private uploadSubscription?: Subscription;
 
-  constructor(private uploadService: UploadService, private snackBar: MatSnackBar) {}
+  constructor(private uploadService: UploadService, private snackBar: MatSnackBar) {
+    // Check browser compatibility on component initialization
+    this.isUnsupportedBrowser = this.detectUnsupportedBrowser();
+  }
 
+  /**
+   * Detect browsers with known issues handling large files (>4GB)
+   * @returns true if browser is Safari or has known issues with large files
+   */
+  private detectUnsupportedBrowser(): boolean {
+    const userAgent = navigator.userAgent.toLowerCase();
+    
+    // Check for Safari
+    const isSafari = userAgent.includes('safari') && !userAgent.includes('chrome');
+    
+    // Check for older browsers (could add more checks as needed)
+    const isIE = userAgent.includes('trident') || userAgent.includes('msie');
+    
+    return isSafari || isIE;
+  }
+  
   onFileSelected(event: any): void {
     const fileList = (event.target as HTMLInputElement).files;
     if (fileList && fileList.length > 0) {
       this.selectedFile = fileList[0];
       this.reset();
       this.currentState = 'selected';
+      
+      // Check if file is large and browser might have issues
+      this.showBrowserWarning = this.isUnsupportedBrowser && 
+                               this.selectedFile.size > this.LARGE_FILE_SIZE_LIMIT;
+      
+      if (this.showBrowserWarning) {
+        this.snackBar.open(
+          'Warning: Your browser may not support uploads larger than 4GB. Consider using Chrome or Firefox.', 
+          'Dismiss', 
+          { duration: 8000 }
+        );
+      }
     }
   }
 
@@ -53,11 +91,8 @@ export class HomeComponent implements OnDestroy {
         } else if (event.type === 'success') {
           this.currentState = 'success';
           
-          const backendPath = event.value as string;
-          const fileId = backendPath.split('/').pop();
-          
-          // Build the correct link to our own application's download page.
-          this.finalDownloadLink = `${window.location.origin}/download/${fileId}`;
+          // The upload service now returns the complete share URL
+          this.finalDownloadLink = event.value as string;
           
           this.snackBar.open('Upload complete!', 'Close', { duration: 3000 });
         }
