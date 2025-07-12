@@ -2,6 +2,6 @@
 
 export const environment = {
   production: true,
-  apiUrl: 'https://api.mfcnextgen.com',
+  apiUrl: 'https://thestoragee.onrender.com',
   downloadBaseUrl: 'https://dl.mfcnextgen.com'
 };
