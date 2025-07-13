@@ -1,9 +1,10 @@
 // In file: Frontend/src/app/componet/home/home.component.ts
 
-import { Component, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { UploadService, UploadEvent } from '../../shared/services/upload.service';
 import { Subscription } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { LoggingService } from '../../shared/services/logging.service';
 
 // --- MODIFIED: Simplified state to match the new flow ---
 // 'uploading' and 'processing' are now the same thing.
@@ -13,7 +14,7 @@ type UploadState = 'idle' | 'selected' | 'uploading' | 'success' | 'error';
   selector: 'app-home',
   templateUrl: './home.component.html',
 })
-export class HomeComponent implements OnDestroy {
+export class HomeComponent implements OnInit, OnDestroy {
   public currentState: UploadState = 'idle';
   public selectedFile: File | null = null;
   
@@ -31,9 +32,23 @@ export class HomeComponent implements OnDestroy {
 
   private uploadSubscription?: Subscription;
 
-  constructor(private uploadService: UploadService, private snackBar: MatSnackBar) {
+  constructor(
+    private uploadService: UploadService, 
+    private snackBar: MatSnackBar,
+    private loggingService: LoggingService
+  ) {
     // Check browser compatibility on component initialization
     this.isUnsupportedBrowser = this.detectUnsupportedBrowser();
+  }
+  
+  ngOnInit(): void {
+    this.loggingService.logEvent('page_view', {
+      page: 'home',
+      features: {
+        uploadEnabled: true,
+        browserCompatWarning: this.isUnsupportedBrowser
+      }
+    });
   }
 
   /**
@@ -59,11 +74,25 @@ export class HomeComponent implements OnDestroy {
       this.reset();
       this.currentState = 'selected';
       
+      // Log file selection with metadata
+      this.loggingService.logUserAction('file_selected', {
+        filename: this.selectedFile.name,
+        fileSize: this.selectedFile.size,
+        fileType: this.selectedFile.type,
+        lastModified: new Date(this.selectedFile.lastModified).toISOString()
+      });
+      
       // Check if file is large and browser might have issues
       this.showBrowserWarning = this.isUnsupportedBrowser && 
                                this.selectedFile.size > this.LARGE_FILE_SIZE_LIMIT;
       
       if (this.showBrowserWarning) {
+        this.loggingService.logEvent('browser_warning', {
+          browser: navigator.userAgent,
+          fileSize: this.selectedFile.size,
+          warningType: 'large_file_unsupported_browser'
+        });
+        
         this.snackBar.open(
           'Warning: Your browser may not support uploads larger than 4GB. Consider using Chrome or Firefox.', 
           'Dismiss', 
@@ -75,6 +104,16 @@ export class HomeComponent implements OnDestroy {
 
   onUpload(): void {
     if (!this.selectedFile) return;
+    
+    // Start timing the upload from user perspective
+    this.loggingService.startTiming('user_upload_experience');
+    
+    // Log upload initiated
+    this.loggingService.logUserAction('upload_initiated', {
+      filename: this.selectedFile.name,
+      fileSize: this.selectedFile.size,
+      fileType: this.selectedFile.type
+    });
 
     // --- CHANGE: Immediately go to 'uploading' state.
     // This is when the progress bar should appear.
@@ -94,6 +133,15 @@ export class HomeComponent implements OnDestroy {
           // The upload service now returns the complete share URL
           this.finalDownloadLink = event.value as string;
           
+          // Log successful upload completion with timing data
+          const timingData = this.loggingService.endTiming('user_upload_experience');
+          this.loggingService.logUserAction('upload_complete', {
+            filename: this.selectedFile?.name,
+            fileSize: this.selectedFile?.size,
+            shareUrl: this.finalDownloadLink,
+            totalDuration: timingData?.duration
+          });
+          
           this.snackBar.open('Upload complete!', 'Close', { duration: 3000 });
         }
         // NOTE: The 'error' case is handled by the `error` callback below.
@@ -101,6 +149,16 @@ export class HomeComponent implements OnDestroy {
       error: (err) => {
         this.currentState = 'error';
         this.errorMessage = err.value || 'An unknown error occurred.';
+        
+        // Log upload error with timing data
+        const timingData = this.loggingService.endTiming('user_upload_experience');
+        this.loggingService.logError(err, {
+          operation: 'file_upload',
+          filename: this.selectedFile?.name,
+          fileSize: this.selectedFile?.size,
+          uploadDuration: timingData?.duration,
+          errorMessage: this.errorMessage
+        });
       }
     });
   }
@@ -122,6 +180,12 @@ export class HomeComponent implements OnDestroy {
   copyLink(link: string): void {
     navigator.clipboard.writeText(link).then(() => {
       this.snackBar.open('Link copied to clipboard!', 'Close', { duration: 2000 });
+      
+      // Log link copy action
+      this.loggingService.logUserAction('link_copied', {
+        linkType: 'share_url',
+        filename: this.selectedFile?.name
+      });
     });
   }
 
@@ -134,6 +198,14 @@ export class HomeComponent implements OnDestroy {
       this.selectedFile = event.dataTransfer.files[0];
       this.reset();
       this.currentState = 'selected';
+      
+      // Log drag and drop file selection
+      this.loggingService.logUserAction('file_dropped', {
+        filename: this.selectedFile.name,
+        fileSize: this.selectedFile.size,
+        fileType: this.selectedFile.type,
+        inputMethod: 'drag_and_drop'
+      });
     }
   }
 

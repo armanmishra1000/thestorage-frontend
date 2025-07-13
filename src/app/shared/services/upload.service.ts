@@ -3,8 +3,9 @@
 import { HttpClient, HttpEvent, HttpEventType, HttpRequest } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { catchError, map, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
+import { LoggingService } from './logging.service';
 
 /**
  * Event emitted during the upload process
@@ -32,7 +33,10 @@ export class UploadService {
   private apiUrl = environment.apiUrl;
   private downloadBaseUrl = environment.downloadBaseUrl;
 
-  constructor(private http: HttpClient) { }
+  constructor(
+    private http: HttpClient,
+    private loggingService: LoggingService
+  ) { }
 
   /**
    * Upload a file using HTTP multipart/form-data
@@ -41,6 +45,17 @@ export class UploadService {
    * @returns Observable that emits progress, success, or error events
    */
   public upload(file: File): Observable<UploadEvent> {
+    // Start timing the upload operation
+    this.loggingService.startTiming('file_upload');
+    
+    // Log upload start with file metadata
+    this.loggingService.logFileUpload('start', {
+      filename: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      lastModified: new Date(file.lastModified).toISOString()
+    });
+    
     // Create form data
     const formData = new FormData();
     formData.append('file', file, file.name);
@@ -53,9 +68,69 @@ export class UploadService {
 
     // Send the request and map the events
     return this.http.request(req).pipe(
+      tap((event: HttpEvent<any>) => {
+        // Log progress events
+        if (event.type === HttpEventType.UploadProgress) {
+          const progress = event.total ? Math.round(100 * event.loaded / event.total) : 0;
+          
+          // Add checkpoints at 25%, 50%, 75%, and 100%
+          if (progress === 25 || progress === 50 || progress === 75 || progress === 100) {
+            this.loggingService.addTimingCheckpoint('file_upload', `upload_${progress}pct`);
+          }
+          
+          // Log progress every 10%
+          if (progress % 10 === 0) {
+            this.loggingService.logFileUpload('progress', {
+              filename: file.name,
+              fileSize: file.size,
+              progress: progress,
+              loaded: event.loaded,
+              total: event.total
+            }, {
+              uploadSpeed: this.calculateUploadSpeed(event.loaded, this.loggingService.endTiming('file_upload')?.duration || 0)
+            });
+            
+            // Restart timing for next progress segment
+            this.loggingService.startTiming('file_upload');
+          }
+        }
+        
+        // Log response
+        if (event.type === HttpEventType.Response) {
+          const body = event.body as UploadResponse;
+          const timingData = this.loggingService.endTiming('file_upload');
+          
+          this.loggingService.logFileUpload('complete', {
+            filename: file.name,
+            fileSize: file.size,
+            fileType: file.type,
+            shareUrl: body.share_url,
+            fileId: body.file_id
+          }, {
+            totalDuration: timingData?.duration,
+            checkpoints: timingData?.checkpoints
+          });
+        }
+      }),
       map((event: HttpEvent<any>) => this.getEventFromResponse(event)),
       catchError(error => {
-        console.error('Upload error:', error);
+        // Log the error
+        this.loggingService.logFileUpload('error', {
+          filename: file.name,
+          fileSize: file.size,
+          fileType: file.type
+        }, {
+          error: error.message || 'Unknown error',
+          status: error.status,
+          statusText: error.statusText
+        });
+        
+        this.loggingService.logError(error, {
+          operation: 'file_upload',
+          filename: file.name,
+          fileSize: file.size
+        });
+        
         const errorMsg = error.error?.detail || 'File upload failed. Please try again.';
         return throwError(() => ({ type: 'error', value: errorMsg }));
       })
@@ -97,5 +172,19 @@ export class UploadService {
    */
   public getDownloadUrl(remotePath: string): string {
     return `${this.downloadBaseUrl}/${remotePath}`;
+  }
+  
+  /**
+   * Calculate the upload speed in KB/s
+   * 
+   * @param bytesUploaded Number of bytes uploaded
+   * @param milliseconds Time elapsed in milliseconds
+   * @returns Upload speed in KB/s
+   */
+  private calculateUploadSpeed(bytesUploaded: number, milliseconds: number): number {
+    if (!milliseconds) return 0;
+    const seconds = milliseconds / 1000;
+    const kilobytes = bytesUploaded / 1024;
+    return Math.round((kilobytes / seconds) * 100) / 100; // KB/s with 2 decimal places
   }
 }
