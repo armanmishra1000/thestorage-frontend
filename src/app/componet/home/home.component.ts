@@ -123,13 +123,13 @@ export class HomeComponent implements OnInit, OnDestroy {
         // --- THIS BLOCK IS THE FIX ---
         // We now only handle the events defined in our new UploadEvent interface.
         if (event.type === 'progress') {
-          // The component is already in the 'uploading' state,
-          // so we just update the progress value.
           this.uploadProgress = event.value;
-          this.currentState = 'uploading';
+          if (event.value === 100) {
+            this.currentState = 'processing';
+          } else if (this.currentState !== 'uploading') {
+            this.currentState = 'uploading';
+          }
         } else if (event.type === 'success') {
-          // processing complete, link ready
-          this.currentState = 'processing';
           this.currentState = 'success';
           
           // The upload service now returns the complete share URL
