@@ -8,7 +8,7 @@ import { LoggingService } from '../../shared/services/logging.service';
 
 // --- MODIFIED: Simplified state to match the new flow ---
 // 'uploading' and 'processing' are now the same thing.
-type UploadState = 'idle' | 'selected' | 'uploading' | 'success' | 'error';
+type UploadState = 'idle' | 'selected' | 'preparing' | 'uploading' | 'processing' | 'success' | 'error';
 
 @Component({
   selector: 'app-home',
@@ -115,9 +115,8 @@ export class HomeComponent implements OnInit, OnDestroy {
       fileType: this.selectedFile.type
     });
 
-    // --- CHANGE: Immediately go to 'uploading' state.
-    // This is when the progress bar should appear.
-    this.currentState = 'uploading'; 
+    // Show short "preparing" phase so users see instant feedback.
+    this.currentState = 'preparing';
 
     this.uploadSubscription = this.uploadService.upload(this.selectedFile).subscribe({
       next: (event: UploadEvent) => {
@@ -127,7 +126,10 @@ export class HomeComponent implements OnInit, OnDestroy {
           // The component is already in the 'uploading' state,
           // so we just update the progress value.
           this.uploadProgress = event.value;
+          this.currentState = 'uploading';
         } else if (event.type === 'success') {
+          // processing complete, link ready
+          this.currentState = 'processing';
           this.currentState = 'success';
           
           // The upload service now returns the complete share URL
