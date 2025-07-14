@@ -1,6 +1,6 @@
 // In file: Frontend/src/app/shared/services/upload.service.ts
 
-import { HttpClient, HttpEvent, HttpEventType, HttpRequest } from '@angular/common/http';
+import { HttpClient, HttpEvent, HttpEventType, HttpRequest, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
@@ -56,14 +56,17 @@ export class UploadService {
       lastModified: new Date(file.lastModified).toISOString()
     });
     
-    // Create form data
-    const formData = new FormData();
-    formData.append('file', file, file.name);
+    // Create the HTTP request using the File object directly as body (no FormData)
+    const headers = new HttpHeaders({
+      'X-File-Name': file.name,
+      'X-File-Type': file.type || 'application/octet-stream',
+      'Content-Type': file.type || 'application/octet-stream'
+    });
 
-    // Create the HTTP request with reportProgress option
-    const req = new HttpRequest('POST', `${this.apiUrl}/api/v1/upload`, formData, {
+    const req = new HttpRequest<any>('POST', `${this.apiUrl}/api/v1/upload`, file, {
       reportProgress: true,
-      responseType: 'json'
+      responseType: 'json',
+      headers
     });
 
     // Send the request and map the events
